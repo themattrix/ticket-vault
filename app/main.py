@@ -108,6 +108,8 @@ async def register_ticket_holder(request: Request, who: str):
         registration.as_tuple,
     )
 
+    logger.info(f'Registered ticket holder "{registration.who}"')
+
     app.ticket_totals[who] = 0
     app.transaction_count += 1
     notify_transaction_waiters()
@@ -116,6 +118,71 @@ async def register_ticket_holder(request: Request, who: str):
         app.ticket_totals,
         headers={"x-transaction-count": app.transaction_count},
         status=201,
+    )
+
+
+# noinspection PyMethodParameters
+class RenameHolderModel(pydantic.BaseModel):
+    timestamp: datetime
+    by: str
+    who: str
+    to: str
+
+    @pydantic.validator("by")
+    def by_must_not_be_empty(cls: "RegistrationModel", v: str) -> str:
+        return must_not_be_empty(cls=cls, v=v)
+
+    @pydantic.validator("who")
+    def who_must_not_be_empty(cls: "Transaction", v: str) -> str:
+        return must_not_be_empty(cls=cls, v=v)
+
+    @pydantic.validator("to")
+    def to_must_not_be_empty(cls: "Transaction", v: str) -> str:
+        return must_not_be_empty(cls=cls, v=v)
+
+    @property
+    def as_tuple(self):
+        return Transaction(
+            timestamp=datetime_to_iso(self.timestamp),
+            by=self.by,
+            who=self.to,
+            amount=0,
+            note=f'Ticket holder renamed from "{self.who}"',
+        )
+
+
+@app.route("/ticket_holders/<who:[A-z]+>", methods=("PATCH",))
+async def rename_ticket_holder(request: Request, who: str):
+    if who not in app.ticket_totals:
+        return json(
+            {"message": f'"{who}" is not a registered ticket holder.'}, status=404
+        )
+
+    try:
+        rename = RenameHolderModel(who=who, **request.json)
+    except pydantic.ValidationError as e:
+        return json({"errors": e.errors()}, status=400)
+
+    async with app.db.cursor() as cursor:
+        await cursor.execute(
+            "UPDATE transactions SET who = ? WHERE who = ?",
+            (rename.to, rename.who),
+        )
+        await cursor.execute(
+            "INSERT INTO transactions (timestamp, by, who, amount, note) "
+            "VALUES (?, ?, ?, ?, ?)",
+            rename.as_tuple,
+        )
+
+    logger.info(f'Renamed ticket holder "{rename.who}" to "{rename.to}"')
+
+    app.ticket_totals[rename.to] = app.ticket_totals.pop(rename.who)
+    app.transaction_count += 1
+    notify_transaction_waiters()
+
+    return json(
+        app.ticket_totals,
+        headers={"x-transaction-count": app.transaction_count},
     )
 
 
@@ -153,6 +220,12 @@ class TransactionModel(pydantic.BaseModel):
     who: str
     amount: int
     note: Optional[str] = None
+
+    @pydantic.validator("amount")
+    def amount_must_not_be_zero(cls: "Transaction", v: int) -> int:
+        if v == 0:
+            raise ValueError("amount must not be zero")
+        return v
 
     @pydantic.validator("by")
     def by_must_not_be_empty(cls: "Transaction", v: str) -> str:

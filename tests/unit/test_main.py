@@ -183,4 +183,100 @@ async def test_long_polling(test_cli):
     )
 
 
-# TODO: test negative cases
+async def test_rename_ticket_holder(test_cli):
+    """
+    A ticket holder can be renamed with a PATCH request. All previous transactions will
+    be updated to reflect the new name, and a 0-amount transaction will be added with
+    a note about the renaming.
+    """
+
+    await create_basic_transactions(test_cli)
+
+    r = await test_cli.patch(
+        "/ticket_holders/Darlene",
+        data=json.dumps(
+            {"timestamp": "2021-03-02T04:44:00Z", "by": "Edward", "to": "Dar"}
+        ),
+    )
+    assert status_and_headers_and_json(r) == (
+        200,
+        {"x-transaction-count": "5"},
+        {
+            "Dar": 500,
+            "Elliot": 5,
+        },
+    )
+
+    # Get all of the transactions to ensure that the renaming is accurately reflected
+    # in the database.
+
+    r = await test_cli.get("/transactions")
+    assert (r.status_code, custom_headers(r.headers), r.json()) == (
+        200,
+        {"x-transaction-count": "5"},
+        [
+            {
+                "id": 5,
+                "timestamp": "2021-03-02T04:44:00Z",
+                "by": "Edward",
+                "who": "Dar",
+                "amount": 0,
+                "note": 'Ticket holder renamed from "Darlene"',
+            },
+            {
+                "id": 4,
+                "timestamp": "2021-03-02T04:43:00Z",
+                "by": "Magda",
+                "who": "Elliot",
+                "amount": 5,
+                "note": "Brushed teeth",
+            },
+            {
+                "id": 3,
+                "timestamp": "2021-03-02T04:42:00Z",
+                "by": "Edward",
+                "who": "Dar",
+                "amount": 500,
+                "note": "Assembled her first PC!",
+            },
+            {
+                "id": 2,
+                "timestamp": "2021-03-02T04:41:00Z",
+                "by": "Edward",
+                "who": "Dar",
+                "amount": 0,
+                "note": "Initial registration",
+            },
+            {
+                "id": 1,
+                "timestamp": "2021-03-02T04:40:00Z",
+                "by": "Magda",
+                "who": "Elliot",
+                "amount": 0,
+                "note": "Initial registration",
+            },
+        ],
+    )
+
+
+# TODO: test more negative cases
+
+
+async def test_rejected_zero_amount(test_cli):
+    await create_basic_transactions(test_cli)
+
+    r = await test_cli.post(
+        "/transactions",
+        data=json.dumps(
+            [
+                {
+                    "timestamp": "2021-03-02T04:45:00Z",
+                    "by": "Edward",
+                    "who": "Darlene",
+                    "amount": 0,
+                    "note": "Bad transaction",
+                },
+            ]
+        ),
+    )
+    assert r.status_code == 400
