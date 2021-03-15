@@ -375,7 +375,7 @@ def must_not_be_empty(cls, v: str) -> str:
 
 if __name__ == "__main__":
     app.run(
-        host="127.0.0.1",
+        host=app.config.get("IP", "127.0.0.1"),
         auto_reload=app.config.get("DEBUG", False),
         port=app.config.PORT,
         workers=app.config.WORKERS,
