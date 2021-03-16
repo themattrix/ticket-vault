@@ -234,6 +234,17 @@ toml = "*"
 testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "requests", "xmlschema"]
 
 [[package]]
+name = "pytest-order"
+version = "0.9.5"
+description = "pytest plugin to run your tests in a specific order"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+pytest = ">=3.7"
+
+[[package]]
 name = "pytest-sanic"
 version = "1.7.0"
 description = "a pytest plugin for Sanic"
@@ -347,7 +358,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "50f939a8a3ff7d4c65466eaf19caeb364598081d9ed94212c1973b1451329466"
+content-hash = "fe3f95b099ec3571ad12dc62440f24a5409e04d994628717ec012e46c7634aad"
 
 [metadata.files]
 aiofiles = [
@@ -498,6 +509,10 @@ pyparsing = [
 pytest = [
     {file = "pytest-6.2.2-py3-none-any.whl", hash = "sha256:b574b57423e818210672e07ca1fa90aaf194a4f63f3ab909a2c67ebb22913839"},
     {file = "pytest-6.2.2.tar.gz", hash = "sha256:9d1edf9e7d0b84d72ea3dbcdfd22b35fb543a5e8f2a60092dd578936bf63d7f9"},
+]
+pytest-order = [
+    {file = "pytest-order-0.9.5.tar.gz", hash = "sha256:9c9e4f1b060414c642e88ad98ca60f1fd37937debd704bd8f4a2ef8e08b9cb6d"},
+    {file = "pytest_order-0.9.5-py2.py3-none-any.whl", hash = "sha256:42136c2035417ffb6d29ff27f61346ead4b8f9a400abebc7f0470beda7db2c15"},
 ]
 pytest-sanic = [
     {file = "pytest-sanic-1.7.0.tar.gz", hash = "sha256:fde2c2fd96d9cef5ead0425dfe097511a25723746b6132269a0ebf764e8da742"},

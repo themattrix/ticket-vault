@@ -1,5 +1,5 @@
-import collections
 import asyncio
+import collections
 
 from typing import List, AsyncIterator, Optional, NamedTuple
 from dataclasses import dataclass, field
@@ -34,6 +34,8 @@ app.transaction_waiters = collections.defaultdict(TransactionWaiter)
 async def init_state(_, loop):
     app.db = await aiosqlite.connect(app.config.DB_PATH)
 
+    logger.info(f"Using SQLite database: {app.config.DB_PATH}")
+
     await app.db.execute(
         "CREATE TABLE IF NOT EXISTS transactions ("
         "  id        INTEGER PRIMARY KEY,"
@@ -44,6 +46,7 @@ async def init_state(_, loop):
         "  note      TEXT"
         ")"
     )
+    await app.db.commit()
 
     async with app.db.execute(
         "SELECT who, SUM(amount) FROM transactions GROUP BY who"
@@ -51,9 +54,13 @@ async def init_state(_, loop):
         async for who, value in cursor:
             app.ticket_totals[who] = value
 
+    logger.info(f"Initial ticket totals: {app.ticket_totals}")
+
     async with app.db.execute("SELECT COUNT(*) FROM transactions") as cursor:
         async for row_count, in cursor:
-            app.total_transactions = row_count
+            app.transaction_count = row_count
+
+    logger.info(f"Initial total transactions: {app.transaction_count}")
 
 
 # noinspection PyUnusedLocal
@@ -107,6 +114,7 @@ async def register_ticket_holder(request: Request, who: str):
         "VALUES (?, ?, ?, ?, ?)",
         registration.as_tuple,
     )
+    await app.db.commit()
 
     logger.info(f'Registered ticket holder "{registration.who}"')
 
@@ -173,6 +181,7 @@ async def rename_ticket_holder(request: Request, who: str):
             "VALUES (?, ?, ?, ?, ?)",
             rename.as_tuple,
         )
+    await app.db.commit()
 
     logger.info(f'Renamed ticket holder "{rename.who}" to "{rename.to}"')
 
@@ -279,6 +288,7 @@ async def post_transactions(request: Request):
         "VALUES (?, ?, ?, ?, ?)",
         tuple(t.as_tuple for t in transaction_list.transactions),
     )
+    await app.db.commit()
 
     ticket_adjustments = {who: 0 for who in app.ticket_totals}
     for t in transaction_list.transactions:
@@ -289,6 +299,7 @@ async def post_transactions(request: Request):
         + ", ".join(
             f"{who}: {app.ticket_totals[who]} -> {app.ticket_totals[who] + amount}"
             for who, amount in sorted(ticket_adjustments.items(), key=lambda i: i[0])
+            if app.ticket_totals[who] != app.ticket_totals[who] + amount
         )
     )
 

@@ -1,6 +1,12 @@
 import asyncio
 import json
 
+import pytest
+
+#
+# Helpers
+#
+
 
 def custom_headers(headers) -> dict:
     return {key: value for key, value in headers.items() if key.startswith("x-")}
@@ -56,6 +62,59 @@ async def create_basic_transactions(test_cli):
         201,
         {"x-transaction-count": "4"},
         {"Elliot": 5, "Darlene": 500},
+    )
+
+
+#
+# Tests
+#
+
+
+@pytest.mark.order(1)
+async def test_persistence_seed_db(test_persistent_cli):
+    await create_basic_transactions(test_persistent_cli)
+
+
+@pytest.mark.order(2)
+async def test_persistence_check_seeded(test_persistent_cli):
+    r = await test_persistent_cli.get("/transactions")
+    assert (r.status_code, custom_headers(r.headers), r.json()) == (
+        200,
+        {"x-transaction-count": "4"},
+        [
+            {
+                "id": 4,
+                "timestamp": "2021-03-02T04:43:00Z",
+                "by": "Magda",
+                "who": "Elliot",
+                "amount": 5,
+                "note": "Brushed teeth",
+            },
+            {
+                "id": 3,
+                "timestamp": "2021-03-02T04:42:00Z",
+                "by": "Edward",
+                "who": "Darlene",
+                "amount": 500,
+                "note": "Assembled her first PC!",
+            },
+            {
+                "id": 2,
+                "timestamp": "2021-03-02T04:41:00Z",
+                "by": "Edward",
+                "who": "Darlene",
+                "amount": 0,
+                "note": "Initial registration",
+            },
+            {
+                "id": 1,
+                "timestamp": "2021-03-02T04:40:00Z",
+                "by": "Magda",
+                "who": "Elliot",
+                "amount": 0,
+                "note": "Initial registration",
+            },
+        ],
     )
 
 
